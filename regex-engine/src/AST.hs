@@ -109,6 +109,7 @@ regexP = do
                     rest (f t1 t2))
                 <|> pure t1
 
+
 parse :: String -> Maybe Regex
 parse str = case [ e | (e, "") <- runParser regexP str ] of 
             ( e : _) -> Just e
