@@ -1,19 +1,12 @@
 module AST where 
 
 import Control.Monad.State
-import Data.List (union)
 data Regex =  Empty
             | Lit Char
             | Concat Regex Regex
             | Union Regex Regex
             | Star Regex 
             deriving (Eq, Show)
-
--- Gramamar: 
--- regex  ::= term ('|' term)*
--- term   ::= factor*
--- factor ::= atom ('*' | '+' | '?')*
--- atom   ::= '(' regex ')'  |  '\' znak  |  znak-niemeta
 
 type Parser a = StateT String [] a
 
@@ -61,11 +54,14 @@ getPostfixOp = (char '*' >> pure (\r -> Star r))
         <|> (char '+' >> pure (\r -> Concat r (Star r)))
         <|> (char '?' >> pure (\r -> Union r Empty))
 
+getUnionOp :: Parser (Regex -> Regex -> Regex)
+getUnionOp = char '|' >> pure Union
+
 -- The grammar
 -- regex  ::= term ('|' term)*
 -- term   ::= factor*
 -- factor ::= atom ('*' | '+' | '?')*
--- atom   ::= '(' regex ')'  |  '\' znak  |  znak-niemeta
+-- atom   ::= '(' regex ')'  |  '\' char  | literal
 
 regexP, termP, factorP, atomP :: Parser Regex
 
@@ -102,9 +98,6 @@ termP = do
         combine [] = Empty
         combine [x] = x
         combine (x:xs) = Concat x (combine xs)   
- 
-getUnionOp :: Parser (Regex -> Regex -> Regex)
-getUnionOp = char '|' >> pure Union
 
 regexP = do 
     t <- termP
@@ -115,7 +108,6 @@ regexP = do
                     t2 <- termP
                     rest (f t1 t2))
                 <|> pure t1
-
 
 parse :: String -> Maybe Regex
 parse str = case [ e | (e, "") <- runParser regexP str ] of 
