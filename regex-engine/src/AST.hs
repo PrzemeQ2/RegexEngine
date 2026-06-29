@@ -114,3 +114,10 @@ parse :: String -> Maybe Regex
 parse str = case [ e | (e, "") <- runParser regexP str ] of 
             ( e : _) -> Just e
             _  -> Nothing
+
+pretty :: Regex -> String 
+pretty Empty = ""
+pretty (Lit c) = [c]
+pretty (Concat a b) = "(" ++ pretty a ++ pretty b ++ ")"
+pretty (Union a b) = "(" ++ pretty a ++ "|"++ pretty b ++ ")"
+pretty (Star a) = "(" ++ pretty a ++ ")*"

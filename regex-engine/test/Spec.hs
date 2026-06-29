@@ -1,15 +1,56 @@
 import Test.Hspec
 import AST
-import NFA
 import DFA
 import Match
 import Data.Maybe (fromJust)
+import Test.QuickCheck
+import Test.Hspec.QuickCheck (prop)
+import Text.Regex.TDFA ((=~))
 
 m :: String -> String -> Bool
 m pattern input = matches (fromJust (parse pattern)) input
 
 mdfa :: String -> String -> Bool
-mdfa pat input = matchDFA (fromJust (parse pat)) input
+mdfa pattern input = matchDFA (fromJust (parse pattern)) input
+
+instance Arbitrary Regex where
+    arbitrary = sized gen
+        where
+            gen 0 = Lit <$> elements "ab"
+            gen n = frequency 
+                [ (3, Lit <$> elements "ab")
+                , (1, pure Empty)
+                , (2, Concat <$> gen (n `div` 2) <*> gen (n `div` 2))
+                , (2, Union  <$> gen (n `div` 2) <*> gen (n `div` 2))
+                , (2, Star   <$> gen (n `div` 2))
+                ]
+
+genNoEmpty :: Int -> Gen Regex
+genNoEmpty 0 = Lit <$> elements "ab"
+genNoEmpty n = frequency
+  [ (3, Lit <$> elements "ab")
+  , (2, Concat <$> genNoEmpty (n`div`2) <*> genNoEmpty (n`div`2))
+  , (2, Union  <$> genNoEmpty (n`div`2) <*> genNoEmpty (n`div`2))
+  , (2, Star   <$> genNoEmpty (n`div`2))
+  ]
+
+prop_nfa_eq_dfa :: Regex -> Property
+prop_nfa_eq_dfa regex = 
+    forAll (listOf (elements "ab")) $ 
+        \s -> matches regex s === matchDFA regex s
+
+prop_matches_tdfa :: Property
+prop_matches_tdfa =
+  forAll (sized genNoEmpty) $ \regex ->
+    forAll (listOf (elements "ab")) $ \s ->
+      matches regex s === (s =~ ("^(" ++ (pretty regex) ++ ")$") :: Bool)
+
+-- prop_matches_tdfa :: Regex -> Property 
+-- prop_matches_tdfa regex = 
+--     forAll (listOf (elements "ab")) $ 
+--         \qs -> matches regex qs === (qs =~ ("^(" ++ render regex ++ ")$"))
+
+
 
 main :: IO ()
 main = hspec $ do 
@@ -103,7 +144,7 @@ main = hspec $ do
         it "no match: aab" $
             m "a?b" "aab" `shouldBe` False
 
-    describe "Matcher tests (NFA):" $ do
+    describe "Matcher tests (DFA):" $ do
         it "match: (a|b) a" $
             mdfa "a|b" "a" `shouldBe` True
         it "match: (a|b) b" $
@@ -134,4 +175,8 @@ main = hspec $ do
             m "(a*)*" (replicate 40 'a') `shouldBe` mdfa "(a*)*" (replicate 40 'a')
         it "a?b aab" $
             m "a?b" "aab" `shouldBe` mdfa "a?b" "aab"     
-        
+    
+    describe "Property-based (QuickCheck)" $ do
+        prop "NFA - DFA equivalence" prop_nfa_eq_dfa
+        prop "matcher agrees with Text.Regex.TDFA" prop_matches_tdfa
+    

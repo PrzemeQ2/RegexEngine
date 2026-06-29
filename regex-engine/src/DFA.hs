@@ -20,12 +20,12 @@ explore edges alpha queue = go queue Map.empty
     go [] m = m
     go (q:qs) m =
         let
-            possibilities = transitionsFrom edges alpha q
+            rqs = transitionsFrom edges alpha q
         in if Map.member q m 
             then go qs m
             else let 
-                newMap = Map.insert q possibilities m
-                targets = [q' | (_, q') <- possibilities]
+                newMap = Map.insert q rqs m
+                targets = [q' | (_, q') <- rqs]
                 in go (qs ++ targets) newMap
 
 data DFA = DFA 
