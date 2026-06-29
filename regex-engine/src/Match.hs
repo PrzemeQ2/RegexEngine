@@ -1,4 +1,4 @@
-module Match where
+module Match (charStep, epsilonStep, step, matches) where
 
 import AST
 import NFA

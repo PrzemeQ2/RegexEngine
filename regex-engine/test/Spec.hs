@@ -45,12 +45,6 @@ prop_matches_tdfa =
     forAll (listOf (elements "ab")) $ \s ->
       matches regex s === (s =~ ("^(" ++ (pretty regex) ++ ")$") :: Bool)
 
--- prop_matches_tdfa :: Regex -> Property 
--- prop_matches_tdfa regex = 
---     forAll (listOf (elements "ab")) $ 
---         \qs -> matches regex qs === (qs =~ ("^(" ++ render regex ++ ")$"))
-
-
 
 main :: IO ()
 main = hspec $ do 

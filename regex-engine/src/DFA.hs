@@ -1,4 +1,4 @@
-module DFA where
+module DFA (DFA(..), alphabet, transitionsFrom, explore, buildDFA, stepDFA, matchDFA) where
 
 import Match
 import AST

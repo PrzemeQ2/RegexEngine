@@ -1,4 +1,4 @@
-module NFA where
+module NFA (NFA(..), getNewStateId, build, compile) where
 
 import AST
 

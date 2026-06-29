@@ -30,7 +30,6 @@ library
       Match
       NFA
       Parser
-      Thompson
   other-modules:
       Paths_regex_engine
   autogen-modules:
