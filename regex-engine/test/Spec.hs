@@ -2,6 +2,7 @@ import Test.Hspec
 import AST
 import DFA
 import Match
+import Parser
 import Data.Maybe (fromJust)
 import Test.QuickCheck
 import Test.Hspec.QuickCheck (prop)
@@ -22,29 +23,33 @@ instance Arbitrary Regex where
                 , (1, pure Empty)
                 , (2, Concat <$> gen (n `div` 2) <*> gen (n `div` 2))
                 , (2, Union  <$> gen (n `div` 2) <*> gen (n `div` 2))
-                , (2, Star   <$> gen (n `div` 2))
-                ]
+                , (2, Star   <$> gen (n `div` 2))]
 
 genNoEmpty :: Int -> Gen Regex
 genNoEmpty 0 = Lit <$> elements "ab"
 genNoEmpty n = frequency
-  [ (3, Lit <$> elements "ab")
-  , (2, Concat <$> genNoEmpty (n`div`2) <*> genNoEmpty (n`div`2))
-  , (2, Union  <$> genNoEmpty (n`div`2) <*> genNoEmpty (n`div`2))
-  , (2, Star   <$> genNoEmpty (n`div`2))
-  ]
+    [ (3, Lit <$> elements "ab")
+    , (2, Concat <$> genNoEmpty (n`div`2) <*> genNoEmpty (n`div`2))
+    , (2, Union  <$> genNoEmpty (n`div`2) <*> genNoEmpty (n`div`2))
+    , (2, Star   <$> genNoEmpty (n`div`2))
+    ]
 
 prop_nfa_eq_dfa :: Regex -> Property
 prop_nfa_eq_dfa regex = 
     forAll (listOf (elements "ab")) $ 
         \s -> matches regex s === matchDFA regex s
 
+prop_round_trip :: Property
+prop_round_trip =
+  forAll (sized genNoEmpty) $ \regex ->
+    parse (pretty regex) === Just regex
+
+
 prop_matches_tdfa :: Property
 prop_matches_tdfa =
   forAll (sized genNoEmpty) $ \regex ->
-    forAll (listOf (elements "ab")) $ \s ->
-      matches regex s === (s =~ ("^(" ++ (pretty regex) ++ ")$") :: Bool)
-
+    forAll (listOf (elements "ab")) $ 
+    \s -> matches regex s === (s =~ ("^(" ++ (pretty regex) ++ ")$") :: Bool)
 
 main :: IO ()
 main = hspec $ do 
@@ -172,5 +177,5 @@ main = hspec $ do
     
     describe "Property-based (QuickCheck)" $ do
         prop "NFA - DFA equivalence" prop_nfa_eq_dfa
-        prop "matcher agrees with Text.Regex.TDFA" prop_matches_tdfa
-    
+        prop "matcher - Text.Regex.TDFA" prop_matches_tdfa
+        prop "round-trip property" prop_round_trip 
