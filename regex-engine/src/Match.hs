@@ -4,7 +4,6 @@ import AST
 import NFA
 import qualified Data.Set as Set
 import Data.Set (Set)
-import Data.Maybe (fromJust)
 
 charStep :: [(Int, Maybe Char, Int)] -> Char -> Set Int -> Set Int
 charStep edges c current = Set.fromList [to | (from, Just c', to) <- edges

@@ -1,11 +1,15 @@
 import Test.Hspec
 import AST
 import NFA
+import DFA
 import Match
 import Data.Maybe (fromJust)
 
 m :: String -> String -> Bool
 m pattern input = matches (fromJust (parse pattern)) input
+
+mdfa :: String -> String -> Bool
+mdfa pat input = matchDFA (fromJust (parse pat)) input
 
 main :: IO ()
 main = hspec $ do 
@@ -41,7 +45,7 @@ main = hspec $ do
         it "parse: \"a|\" Nothing" $ 
             parse "a|" `shouldBe` Just (Union (Lit 'a') Empty)
 
-    describe "Matcher tests:" $ do
+    describe "Matcher tests (NFA):" $ do
         it "match: Empty \"\"" $ 
             matches (Empty) "" `shouldBe` True
         it "no match: Empty \"a\"" $
@@ -98,4 +102,36 @@ main = hspec $ do
             m "a?b" "ab" `shouldBe` True
         it "no match: aab" $
             m "a?b" "aab" `shouldBe` False
+
+    describe "Matcher tests (NFA):" $ do
+        it "match: (a|b) a" $
+            mdfa "a|b" "a" `shouldBe` True
+        it "match: (a|b) b" $
+            mdfa "a|b" "b" `shouldBe` True
+        it "no match: (a|b) ab" $
+            mdfa "a|b" "ab" `shouldBe` False
+        it "no match: (a|b) \"\"" $
+            mdfa "a|b" "" `shouldBe` False
+        it "match: (a|b)*c ababc" $
+            mdfa "(a|b)*c" "ababc" `shouldBe` True
+        it "no match: (a|b)*c aba" $
+            mdfa "(a|b)*c" "aba" `shouldBe` False
+        it "match: a* \"\"" $
+            mdfa "a*" "" `shouldBe` True
+        it "match: a* aaa" $
+            mdfa "a*" "aaa" `shouldBe` True
+        it "no match: a* aab" $
+            mdfa "a*" "aab" `shouldBe` False 
+        
+    describe "NFA and DFA equivalence" $ do
+        it "(a|b)*c ababc" $
+            m "(a|b)*c" "ababc" `shouldBe` mdfa "(a|b)*c" "ababc"
+        it "(a|b)*c aba" $
+            m "(a|b)*c" "aba" `shouldBe` mdfa "(a|b)*c" "aba"
+        it "a* \"\"" $
+            m "a*" "" `shouldBe` mdfa "a*" ""
+        it "(a*)* (long input)" $
+            m "(a*)*" (replicate 40 'a') `shouldBe` mdfa "(a*)*" (replicate 40 'a')
+        it "a?b aab" $
+            m "a?b" "aab" `shouldBe` mdfa "a?b" "aab"     
         
