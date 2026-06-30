@@ -1,4 +1,4 @@
-module Parser (Parser, runParser, zero, item, (<|>), sat, char, many, many1, getPostfixOp, getUnionOp, regexP, termP, factorP, atomP, parse) where
+module Parser (Parser, runParser, zero, item, (<|>), sat, char, many, many1, getPostfixOp, getUnionOp, regexP, termP, factorP, atomP, parse, parseWithErr) where
 import Control.Monad.State
 import AST
 
@@ -107,4 +107,18 @@ regexP = do
 parse :: String -> Maybe Regex
 parse str = case [ e | (e, "") <- runParser regexP str ] of 
             ( e : _) -> Just e
-            _  -> Nothing    
+            _  -> Nothing
+
+
+parseWithErr :: String -> Either (Int, String) Regex
+parseWithErr str =
+    let list = runParser regexP str 
+    in case list of 
+        [] -> Left (1, "Cannot parse: " ++ str)  
+        ((e, "") : _) -> Right e
+        ((_, rest) : _) -> 
+            let pos = length str - length rest
+                errMsg = "Parse error at position " ++ show pos ++ ":\n"
+                      ++ str ++ "\n"
+                      ++ replicate pos ' ' ++ "^\n"
+            in Left (pos, errMsg)

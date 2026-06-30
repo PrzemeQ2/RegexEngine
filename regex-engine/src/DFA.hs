@@ -1,12 +1,13 @@
-module DFA (DFA(..), alphabet, transitionsFrom, explore, buildDFA, stepDFA, matchDFA) where
+module DFA (DFA(..), alphabet, transitionsFrom, explore, buildDFA, stepDFA, matchDFA, minimizeDFA, matchMinDFA, runDFA) where
 
-import Match
+import Match ( epsilonStep, step )
 import AST
 import NFA
 import qualified Data.Set as Set
 import Data.Set (Set)
 import qualified Data.Map as Map
 import Data.Map (Map)
+import Data.Maybe (fromMaybe)
 
 alphabet :: [(Int, Maybe Char, Int)] -> [Char] 
 alphabet edges = Set.toList $ Set.fromList [c | (_, Just c, _)<-edges] 
@@ -51,12 +52,65 @@ stepDFA edges qs c =
         Nothing -> Set.empty
         Just transition -> 
             case lookup c transition of 
-                Just qa -> qa
+                Just qn -> qn
                 Nothing -> Set.empty
 
+runDFA :: DFA -> String -> Bool
+runDFA dfa input = foldl (stepDFA (dfaEdges dfa)) (dfaStart dfa) input `elem` dfaAccept dfa
+
 matchDFA :: Regex -> String -> Bool
-matchDFA regex input = 
-    let dfa = buildDFA regex  
-        qs = dfaStart dfa
-        final = foldl (stepDFA (dfaEdges dfa)) qs input 
-        in final `elem` (dfaAccept dfa)
+matchDFA regex input = runDFA (buildDFA regex) input
+
+
+-- Minimization of DFA
+
+alphabetDFA :: DFA -> [Char]
+alphabetDFA dfa = Set.toList $ Set.fromList [ c | values <- Map.elems (dfaEdges dfa), (c, _) <- values]
+
+isAcc :: DFA -> Set Int -> Bool
+isAcc dfa k = k `elem` dfaAccept dfa
+
+norm :: (Set Int, Set Int) -> (Set Int, Set Int)
+norm (a,b) = if a <= b then (a,b) else (b,a)
+
+basePairs :: DFA -> [(Set Int, Set Int)]
+basePairs dfa = [ norm (k1, k2) | k1 <- ks, k2 <- ks, k1<k2, isAcc dfa k1 /= isAcc dfa k2]
+    where
+        ks = Map.keys (dfaEdges dfa)
+
+distinguishable :: DFA -> [Char] -> Set (Set Int, Set Int)
+distinguishable dfa alpha = go (Set.fromList base)
+    where
+        base = basePairs dfa
+        ks = Map.keys (dfaEdges dfa)
+        go pairs = 
+            let new = [norm (a, b) | a <- ks, b <- ks, a < b
+                        , not (Set.member (norm (a, b)) pairs)
+                        , any (\c ->let da = stepDFA (dfaEdges dfa) a c 
+                                        db = stepDFA (dfaEdges dfa) b c 
+                                    in da /= db && (Set.member (norm(da, db)) pairs)) alpha]
+                deltaPairs = Set.union pairs (Set.fromList new)
+            in if Set.size deltaPairs == Set.size pairs then pairs else go deltaPairs
+
+equiv :: Set (Set Int, Set Int) -> Set Int -> Set Int -> Bool
+equiv dist p q = p == q || not (Set.member (norm (p, q)) dist)
+
+rep :: Set (Set Int, Set Int) -> [Set Int] -> Set Int -> Set Int
+rep dist allStates k = minimum [ s | s <- allStates, equiv dist k s] 
+
+minimizeDFA :: DFA -> DFA
+minimizeDFA dfa = DFA newStart newAccept newEdges 
+    where
+        alpha = alphabetDFA dfa
+        dist = distinguishable dfa alpha
+        allStates = Map.keys (dfaEdges dfa)
+        r = rep dist allStates 
+        newStart = r (dfaStart dfa)
+        newAccept = Set.toList . Set.fromList $ map r (dfaAccept dfa)
+        reps = Set.toList $ Set.fromList (map r allStates)
+        newEdges = Map.fromList [(cr, edgesFor cr) | cr <- reps]
+        edgesFor cr = [(c, r target) | (c, target) <- fromMaybe [] (Map.lookup cr (dfaEdges dfa))]
+
+
+matchMinDFA :: Regex -> String -> Bool
+matchMinDFA regex input = runDFA (minimizeDFA (buildDFA regex)) input

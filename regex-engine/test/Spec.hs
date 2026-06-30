@@ -1,6 +1,6 @@
 import Test.Hspec
 import AST
-import DFA
+import DFA  
 import Match
 import Parser
 import Data.Maybe (fromJust)
@@ -51,6 +51,11 @@ prop_matches_tdfa =
     forAll (listOf (elements "ab")) $ 
     \s -> matches regex s === (s =~ ("^(" ++ (pretty regex) ++ ")$") :: Bool)
 
+prop_min_eq_dfa :: Regex -> Property
+prop_min_eq_dfa regex =
+    forAll (listOf (elements "ab")) $ 
+    \s -> runDFA (minimizeDFA (buildDFA regex)) s === matchDFA regex s
+        
 main :: IO ()
 main = hspec $ do 
     describe "AST Parser tests:" $ do
@@ -179,3 +184,4 @@ main = hspec $ do
         prop "NFA - DFA equivalence" prop_nfa_eq_dfa
         prop "matcher - Text.Regex.TDFA" prop_matches_tdfa
         prop "round-trip property" prop_round_trip 
+        prop "MinDFA - DFA: same results" prop_min_eq_dfa 

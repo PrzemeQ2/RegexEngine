@@ -1,9 +1,12 @@
 module Main (main) where
 import System.Environment (getArgs)
-import Parser
+import Parser 
 import AST
 import Match
 import DFA
+import NFA
+import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 checkMatch :: Bool -> IO ()
 checkMatch isMatch = do 
@@ -19,14 +22,14 @@ main = do
     if length rest /= 2 
         then (do 
                 putStrLn "Invalid number of arguments"  
-                putStrLn "stack run -- \"(a|b)*c\" \"ababc\"")
+                putStrLn "Ex: stack run -- \"(a|b)*c\" \"ababc\"")
         else 
             let pattern = rest !! 0 
                 input = rest !! 1
-                mr = parse pattern 
-            in (do case mr of 
-                    Nothing -> putStrLn ("Cannot parse pattern: " ++ pattern)
-                    Just ast -> (do 
+                eth = parseWithErr pattern 
+            in (do case eth of 
+                    Left (_, errMsg) -> putStr (errMsg)
+                    Right ast -> (do 
                         putStrLn ("pretty AST: " ++ pretty ast)
                         if isDfa 
                             then checkMatch $ matchDFA ast input 
