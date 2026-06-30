@@ -88,11 +88,6 @@ repeatOpt 1 reg = Union reg Empty
 repeatOpt n reg = Concat (Union reg Empty) (repeatOpt (n-1) reg)
 
 -- The grammar:
--- regex  ::= term ('|' term)*
--- term   ::= factor*
--- factor ::= atom ('*' | '+' | '?')*
--- atom   ::= '(' regex ')'  |  '\' char  | literal
-
 regexP, termP, factorP, atomP :: Parser Regex
 
 atomP = parenthesisP <|> metacharP <|> litP
