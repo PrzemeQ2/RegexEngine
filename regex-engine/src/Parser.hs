@@ -1,6 +1,7 @@
-module Parser (Parser, runParser, zero, item, (<|>), sat, char, many, many1, getPostfixOp, getUnionOp, regexP, termP, factorP, atomP, parse, parseWithErr) where
+module Parser (Parser, runParser, zero, item, (<|>), sat, char, many, many1, getPostfixOp, getUnionOp, regexP, termP, factorP, atomP, parse, parseWithErr, repeatConcat) where
 import Control.Monad.State
 import AST
+import Data.Char (isDigit)
 
 type Parser a = StateT String [] a
 
@@ -47,9 +48,44 @@ getPostfixOp :: Parser (Regex -> Regex)
 getPostfixOp = (char '*' >> pure (\r -> Star r)) 
         <|> (char '+' >> pure (\r -> Concat r (Star r)))
         <|> (char '?' >> pure (\r -> Union r Empty))
+        <|> getBraceOp
 
 getUnionOp :: Parser (Regex -> Regex -> Regex)
 getUnionOp = char '|' >> pure Union
+
+getBraceOp :: Parser (Regex -> Regex)
+getBraceOp =
+        (do _ <- char '{'
+            n <- many1 (sat isDigit)
+            _ <- char '}'
+            let k = read n
+            pure (\r -> repeatConcat k r))
+    <|> (do _ <- char '{'
+            n1 <- many1 (sat isDigit)
+            _ <- char ','
+            n2 <- many1 (sat isDigit)
+            _ <- char '}'
+            let k1 = read n1
+                k2 = read n2
+            if k2 >= k1
+                then pure (\r -> Concat (repeatConcat k1 r) (repeatOpt (k2 - k1) r))
+                else zero)
+    <|> (do _ <- char '{'
+            n <- many1 (sat isDigit)
+            _ <- char ','
+            _ <- char '}'
+            let k = read n
+            pure (\r -> Concat (repeatConcat k r) (Star r)))
+
+repeatConcat :: Int -> Regex -> Regex 
+repeatConcat 0 _ =  Empty
+repeatConcat 1 reg = reg
+repeatConcat n reg = (Concat reg (repeatConcat (n-1) reg))  
+
+repeatOpt :: Int -> Regex -> Regex     
+repeatOpt 0 _ = Empty
+repeatOpt 1 reg = Union reg Empty
+repeatOpt n reg = Concat (Union reg Empty) (repeatOpt (n-1) reg)
 
 -- The grammar:
 -- regex  ::= term ('|' term)*
@@ -72,7 +108,7 @@ atomP = parenthesisP <|> metacharP <|> litP
             c <- item 
             pure (Lit c)
 
-        metachars = "()|*+?\\"
+        metachars = "()|*+?{}\\"
         litP = do 
             c <- sat (`notElem` metachars)
             pure (Lit c)

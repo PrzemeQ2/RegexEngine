@@ -4,9 +4,6 @@ import Parser
 import AST
 import Match
 import DFA
-import NFA
-import qualified Data.Map as Map
-import qualified Data.Set as Set
 
 checkMatch :: Bool -> IO ()
 checkMatch isMatch = do 

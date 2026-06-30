@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-orphans #-}
 import Test.Hspec
 import AST
 import DFA  
@@ -87,8 +88,20 @@ main = hspec $ do
             parse "a)" `shouldBe` Nothing
         it "parse: \"*a\" Nothing" $ 
             parse "*a" `shouldBe` Nothing
-        it "parse: \"a|\" Nothing" $ 
+        it "parse: \"a|\" Just (Union (Lit 'a') Empty)" $ 
             parse "a|" `shouldBe` Just (Union (Lit 'a') Empty)
+        it "parse: \"a{2}\" Just (Concat (Lit 'a') (Lit 'a'))" $ 
+            parse "a{2}" `shouldBe` Just (Concat (Lit 'a') (Lit 'a'))
+        it "parse: \"a{0}\" Just Empty" $ 
+            parse "a{0}" `shouldBe` Just Empty
+        it "parse: \"a{1}\" Just (Lit 'a')" $ 
+            parse "a{1}" `shouldBe` Just (Lit 'a')
+        it "parse: \"a{3}\" Just (Concat (Lit 'a') (Concat (Lit 'a') (Lit 'a')))" $ 
+            parse "a{3}" `shouldBe` Just (Concat (Lit 'a') (Concat (Lit 'a') (Lit 'a')))
+        it "parse: \"a{2,1}\" Nothing (reversed range rejected)" $ 
+            parse "a{2,1}" `shouldBe` Nothing
+        it "parse: \"a{,3}\" Nothing (missing lower bound)" $ 
+            parse "a{,3}" `shouldBe` Nothing
 
     describe "Matcher tests (NFA):" $ do
         it "match: Empty \"\"" $ 
@@ -148,6 +161,34 @@ main = hspec $ do
         it "no match: aab" $
             m "a?b" "aab" `shouldBe` False
 
+    describe "End-to-end: {n,m} repetition" $ do
+        it "match: a{2} aa" $
+            m "a{2}" "aa" `shouldBe` True
+        it "no match: a{2} a" $
+            m "a{2}" "a" `shouldBe` False
+        it "no match: a{2} aaa" $
+            m "a{2}" "aaa" `shouldBe` False
+        it "no match: a{2,3} a" $
+            m "a{2,3}" "a" `shouldBe` False
+        it "match: a{2,3} aa" $
+            m "a{2,3}" "aa" `shouldBe` True
+        it "match: a{2,3} aaa" $
+            m "a{2,3}" "aaa" `shouldBe` True
+        it "no match: a{2,3} aaaa" $
+            m "a{2,3}" "aaaa" `shouldBe` False
+        it "no match: a{2,} a" $
+            m "a{2,}" "a" `shouldBe` False
+        it "match: a{2,} aa" $
+            m "a{2,}" "aa" `shouldBe` True
+        it "match: a{2,} aaaaa" $
+            m "a{2,}" "aaaaa" `shouldBe` True
+        it "match: (ab){2} abab" $
+            m "(ab){2}" "abab" `shouldBe` True
+        it "no match: (ab){2} ab" $
+            m "(ab){2}" "ab" `shouldBe` False
+        it "no match: (ab){2} ababab" $
+            m "(ab){2}" "ababab" `shouldBe` False
+    
     describe "Matcher tests (DFA):" $ do
         it "match: (a|b) a" $
             mdfa "a|b" "a" `shouldBe` True
