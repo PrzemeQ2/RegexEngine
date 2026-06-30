@@ -1,4 +1,5 @@
 module Parser (Parser, runParser, zero, item, (<|>), sat, char, many, many1, getPostfixOp, getUnionOp, regexP, termP, factorP, atomP, parse, parseWithErr, repeatConcat) where
+
 import Control.Monad.State
 import AST
 import Data.Char (isDigit)

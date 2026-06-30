@@ -1,5 +1,6 @@
 module Match (charStep, epsilonStep, step, matches) where
 
+
 import AST
 import NFA
 import qualified Data.Set as Set
